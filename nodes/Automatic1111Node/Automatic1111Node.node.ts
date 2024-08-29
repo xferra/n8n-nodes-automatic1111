@@ -1,10 +1,39 @@
 import {
+	IBinaryData,
 	IExecuteFunctions, ILoadOptionsFunctions,
 	INodeExecutionData, INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	NodeOperationError,
 } from 'n8n-workflow';
+
+
+async function toBase64DataURL(url: string) {
+	const response = await fetch(url);
+	const blob = await response.blob();
+	const buffer = Buffer.from(await blob.arrayBuffer());
+	return "data:" + blob.type + ';base64,' + buffer.toString('base64');
+}
+
+type ControlNetUnit = {
+	input_image?: string;
+};
+
+async function mapUnitsToBase64(units?: Array<ControlNetUnit>): Promise<Array<ControlNetUnit> | undefined> {
+	if (!units) {
+		return units;
+	}
+
+	return Promise.all(units.map(async unit => {
+		if (!unit.input_image) {
+			return unit;
+		}
+		return {
+			...unit,
+			input_image: await toBase64DataURL(unit.input_image),
+		}
+	}));
+}
 
 export class Automatic1111Node implements INodeType {
 	description: INodeTypeDescription = {
@@ -99,6 +128,27 @@ export class Automatic1111Node implements INodeType {
 				default: -1,
 				required: true,
 			},
+			{
+				displayName: 'Batch count',
+				name: 'batchCount',
+				type: 'number',
+				default: 1,
+				required: true,
+			},
+			{
+				description: 'ControlNet Units (array)',
+				placeholder: '[]',
+				displayName: 'ControlNet Units (array)',
+				name: 'controlNetUnits',
+				type: 'string',
+				typeOptions: {
+					alwaysOpenEditWindow: true,
+					rows: 10,
+				},
+				default: '[]',
+				hint: 'https://github.com/Mikubill/sd-webui-controlnet/wiki/API#controlnetunitrequest-json-object',
+				required: false,
+			},
 		],
 	};
 
@@ -160,10 +210,10 @@ export class Automatic1111Node implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
+		const inputItems = this.getInputData();
+		const outputItems: Array<INodeExecutionData> = [];
 
 		const credentials = await this.getCredentials('automatic1111CredentialsApi');
-		let item: INodeExecutionData;
 		let model: string;
 		let sampler: string;
 		let prompt: string;
@@ -173,8 +223,10 @@ export class Automatic1111Node implements INodeType {
 		let steps: number;
 		let cfg_scale: number;
 		let seed: number;
+		let controlNetUnits: string;
+		let batchCount: number;
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		for (let itemIndex = 0; itemIndex < inputItems.length; itemIndex++) {
 			try {
 				model = this.getNodeParameter('model', itemIndex) as string;
 				sampler = this.getNodeParameter('sampler', itemIndex) as string;
@@ -185,8 +237,8 @@ export class Automatic1111Node implements INodeType {
 				steps = this.getNodeParameter('steps', itemIndex) as number;
 				cfg_scale = this.getNodeParameter('cfg_scale', itemIndex) as number;
 				seed = this.getNodeParameter('seed', itemIndex) as number;
-
-				item = items[itemIndex];
+				controlNetUnits = this.getNodeParameter('controlNetUnits', itemIndex) as string;
+				batchCount = this.getNodeParameter('batchCount', itemIndex) as number;
 
 				await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
 					method: 'POST',
@@ -213,25 +265,47 @@ export class Automatic1111Node implements INodeType {
 						'cfg_scale': cfg_scale,
 						'width': width,
 						'height': height,
-						'seed': seed
+						'seed': seed,
+						'batch_size': batchCount,
+						'alwayson_scripts': {
+							'controlnet': {
+								'args': controlNetUnits ? await mapUnitsToBase64(JSON.parse(controlNetUnits) as Array<ControlNetUnit>) : [],
+							},
+						},
 					}),
 				});
 
-				const binaryData = await this.helpers.prepareBinaryData(Buffer.from(response.images[0], 'base64'));
-				binaryData.mimeType = 'image/jpg';
-				binaryData.fileExtension = 'jpg';
-				binaryData.fileType = 'image';
-				binaryData.fileName = 'image.jpg';
+				const binaryData: Array<IBinaryData> = await Promise.all(
+					response.images.map(async (item: string) => {
+						const data = await this.helpers.prepareBinaryData(Buffer.from(item, 'base64'));
+						data.mimeType = 'image/jpg';
+						data.fileExtension = 'jpg';
+						data.fileType = 'image';
+						data.fileName = 'image.jpg';
+						return data;
+					}),
+				);
 
-				item.binary = {
-					data: binaryData
-				};
-				item.json = response.parameters;
-				item.json.info = JSON.parse(response.info);
+				binaryData.forEach(bin => {
+					const item: INodeExecutionData = {
+						binary: {
+							data: bin,
+						},
+						json: response.parameters,
+					};
+
+					item.binary = {
+						data: bin,
+					};
+					item.json = response.parameters;
+					item.json.info = JSON.parse(response.info);
+
+					outputItems.push(item);
+				});
 
 			} catch (error) {
 				if (this.continueOnFail()) {
-					items.push({json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex});
+					inputItems.push({json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex});
 				} else {
 					if (error.context) {
 						error.context.itemIndex = itemIndex;
@@ -244,6 +318,6 @@ export class Automatic1111Node implements INodeType {
 			}
 		}
 
-		return this.prepareOutputData(items);
+		return this.prepareOutputData(outputItems);
 	}
 }
