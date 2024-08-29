@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-stable-diffusion-api",
+  "name": "n8n-nodes-sjourney",
   "version": "0.3.0",
   "description": "Enables image generation from text descriptions by integrating the Automatic1111 API (Stable Diffusion) into n8n workflows.",
   "keywords": [

@@ -129,16 +129,16 @@ export class Automatic1111Node implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Batch count',
+				displayName: 'Batch Count',
 				name: 'batchCount',
 				type: 'number',
 				default: 1,
 				required: true,
 			},
 			{
-				description: 'ControlNet Units (array)',
+				displayName: 'ControlNet Units (Array)',
+				description: 'ControlNet Units Description (Array)',
 				placeholder: '[]',
-				displayName: 'ControlNet Units (array)',
 				name: 'controlNetUnits',
 				typeOptions: {
 					alwaysOpenEditWindow: true,
@@ -151,7 +151,6 @@ export class Automatic1111Node implements INodeType {
 				// @ts-ignore
 				ignoreValidationDuringExecution: true,
 				hint: 'https://github.com/Mikubill/sd-webui-controlnet/wiki/API#controlnetunitrequest-json-object',
-				required: false,
 			},
 		],
 	};
