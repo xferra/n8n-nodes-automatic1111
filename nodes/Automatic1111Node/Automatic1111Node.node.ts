@@ -140,12 +140,16 @@ export class Automatic1111Node implements INodeType {
 				placeholder: '[]',
 				displayName: 'ControlNet Units (array)',
 				name: 'controlNetUnits',
-				type: 'string',
 				typeOptions: {
 					alwaysOpenEditWindow: true,
 					rows: 10,
 				},
+				type: 'json',
 				default: '[]',
+				// @ts-ignore
+				validateType: 'array',
+				// @ts-ignore
+				ignoreValidationDuringExecution: true,
 				hint: 'https://github.com/Mikubill/sd-webui-controlnet/wiki/API#controlnetunitrequest-json-object',
 				required: false,
 			},
@@ -269,7 +273,7 @@ export class Automatic1111Node implements INodeType {
 						'batch_size': batchCount,
 						'alwayson_scripts': {
 							'controlnet': {
-								'args': controlNetUnits ? await mapUnitsToBase64(JSON.parse(controlNetUnits) as Array<ControlNetUnit>) : [],
+								'args': controlNetUnits ? await mapUnitsToBase64(JSON.parse(controlNetUnits)) : [],
 							},
 						},
 					}),
