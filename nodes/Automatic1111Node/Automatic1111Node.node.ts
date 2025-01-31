@@ -259,7 +259,7 @@ export class Automatic1111Node implements INodeType {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({'sd_model_checkpoint': model}),
-					signal: AbortSignal.timeout(timeout),
+					timeout: timeout,
 				});
 
 				const response = await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
@@ -285,7 +285,7 @@ export class Automatic1111Node implements INodeType {
 							},
 						},
 					}),
-					signal: AbortSignal.timeout(timeout)
+					timeout: timeout,
 				});
 
 				const binaryData: Array<IBinaryData> = await Promise.all(
