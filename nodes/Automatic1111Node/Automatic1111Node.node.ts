@@ -154,7 +154,8 @@ export class Automatic1111Node implements INodeType {
 			},
 			{
 				displayName: 'Timeout',
-				name: 'Timeout for SD requests',
+				name: 'timeout',
+				description: 'Timeout for SD requests',
 				type: 'number',
 				default: 60000,
 			},
@@ -249,7 +250,7 @@ export class Automatic1111Node implements INodeType {
 				seed = this.getNodeParameter('seed', itemIndex) as number;
 				controlNetUnits = this.getNodeParameter('controlNetUnits', itemIndex) as string;
 				batchCount = this.getNodeParameter('batchCount', itemIndex) as number;
-				timeout = this.getNodeParameter('timeout', itemIndex) as number;
+				timeout = (this.getNodeParameter('timeout', itemIndex) || 60000) as number;
 
 				await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
 					method: 'POST',
