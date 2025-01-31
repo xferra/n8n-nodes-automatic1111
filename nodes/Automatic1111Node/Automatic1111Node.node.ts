@@ -152,6 +152,12 @@ export class Automatic1111Node implements INodeType {
 				ignoreValidationDuringExecution: true,
 				hint: 'https://github.com/Mikubill/sd-webui-controlnet/wiki/API#controlnetunitrequest-json-object',
 			},
+			{
+				displayName: 'Timeout',
+				name: 'Timeout for SD requests',
+				type: 'number',
+				default: 60000,
+			},
 		],
 	};
 
@@ -228,6 +234,7 @@ export class Automatic1111Node implements INodeType {
 		let seed: number;
 		let controlNetUnits: string;
 		let batchCount: number;
+		let timeout: number;
 
 		for (let itemIndex = 0; itemIndex < inputItems.length; itemIndex++) {
 			try {
@@ -242,6 +249,7 @@ export class Automatic1111Node implements INodeType {
 				seed = this.getNodeParameter('seed', itemIndex) as number;
 				controlNetUnits = this.getNodeParameter('controlNetUnits', itemIndex) as string;
 				batchCount = this.getNodeParameter('batchCount', itemIndex) as number;
+				timeout = this.getNodeParameter('timeout', itemIndex) as number;
 
 				await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
 					method: 'POST',
@@ -251,6 +259,7 @@ export class Automatic1111Node implements INodeType {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({'sd_model_checkpoint': model}),
+					signal: AbortSignal.timeout(timeout),
 				});
 
 				const response = await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
@@ -276,6 +285,7 @@ export class Automatic1111Node implements INodeType {
 							},
 						},
 					}),
+					signal: AbortSignal.timeout(timeout)
 				});
 
 				const binaryData: Array<IBinaryData> = await Promise.all(
