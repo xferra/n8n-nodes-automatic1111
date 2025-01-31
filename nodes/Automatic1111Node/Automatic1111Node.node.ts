@@ -136,6 +136,14 @@ export class Automatic1111Node implements INodeType {
 				required: true,
 			},
 			{
+				displayName: 'Timeout SD',
+				name: 'timeoutSd',
+				description: 'Timeout for SD requests',
+				type: 'number',
+				default: 60000,
+				required: true,
+			},
+			{
 				displayName: 'ControlNet Units (Array)',
 				description: 'ControlNet Units Description (Array)',
 				placeholder: '[]',
@@ -151,13 +159,6 @@ export class Automatic1111Node implements INodeType {
 				// @ts-ignore
 				ignoreValidationDuringExecution: true,
 				hint: 'https://github.com/Mikubill/sd-webui-controlnet/wiki/API#controlnetunitrequest-json-object',
-			},
-			{
-				displayName: 'Timeout',
-				name: 'timeout',
-				description: 'Timeout for SD requests',
-				type: 'number',
-				default: 60000,
 			},
 		],
 	};
@@ -235,7 +236,7 @@ export class Automatic1111Node implements INodeType {
 		let seed: number;
 		let controlNetUnits: string;
 		let batchCount: number;
-		let timeout: number;
+		let timeoutSd: number;
 
 		for (let itemIndex = 0; itemIndex < inputItems.length; itemIndex++) {
 			try {
@@ -250,7 +251,7 @@ export class Automatic1111Node implements INodeType {
 				seed = this.getNodeParameter('seed', itemIndex) as number;
 				controlNetUnits = this.getNodeParameter('controlNetUnits', itemIndex) as string;
 				batchCount = this.getNodeParameter('batchCount', itemIndex) as number;
-				timeout = (this.getNodeParameter('timeout', itemIndex) || 60000) as number;
+				timeoutSd = (this.getNodeParameter('timeoutSd', itemIndex) || 60000) as number;
 
 				await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
 					method: 'POST',
@@ -260,7 +261,7 @@ export class Automatic1111Node implements INodeType {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({'sd_model_checkpoint': model}),
-					timeout: timeout,
+					timeout: timeoutSd,
 				});
 
 				const response = await this.helpers.requestWithAuthentication.call(this, 'automatic1111CredentialsApi', {
@@ -286,7 +287,7 @@ export class Automatic1111Node implements INodeType {
 							},
 						},
 					}),
-					timeout: timeout,
+					timeout: timeoutSd,
 				});
 
 				const binaryData: Array<IBinaryData> = await Promise.all(
